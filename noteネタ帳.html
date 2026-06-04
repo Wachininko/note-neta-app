@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<!-- saved from url=(0029)file:///T:/note_neta_app.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="noteネタ帳">
+<meta name="theme-color" content="#fdf8f2">
+<title>noteネタ帳</title>
+<link href="./noteネタ帳_files/css2" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fdf8f2;
+    --surface: #fffdf9;
+    --ink: #2c2416;
+    --ink-light: #6b5a45;
+    --ink-faint: #c4b49e;
+    --accent1: #c0392b;   /* 朱 */
+    --accent2: #8b6914;   /* 金 */
+    --accent3: #2c6e49;   /* 深緑 */
+    --t1-color: #c0392b;
+    --t2-color: #2c6e49;
+    --t3-color: #8b6914;
+    --border: #e8d9c4;
+    --shadow: rgba(44,36,22,0.10);
+    --card-radius: 18px;
+    --font-serif: 'Noto Serif JP', serif;
+    --font-sans: 'Noto Sans JP', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    min-height: 100svh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* 和紙テクスチャ風ノイズ */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  .app {
+    position: relative; z-index: 1;
+    max-width: 480px; margin: 0 auto;
+    padding: env(safe-area-inset-top, 20px) 16px env(safe-area-inset-bottom, 24px);
+    padding-top: max(env(safe-area-inset-top), 20px);
+  }
+
+  /* ヘッダー */
+  .header {
+    text-align: center;
+    padding: 28px 0 20px;
+  }
+  .header-kamon {
+    font-size: 28px; margin-bottom: 6px;
+    filter: drop-shadow(0 2px 4px rgba(192,57,43,0.2));
+  }
+  .header h1 {
+    font-family: var(--font-serif);
+    font-size: 22px; font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--ink);
+  }
+  .header p {
+    font-size: 11px; color: var(--ink-light);
+    letter-spacing: 0.08em; margin-top: 4px;
+  }
+
+  /* テーマセレクター */
+  .theme-selector {
+    display: flex; gap: 8px;
+    margin-bottom: 20px;
+  }
+  .theme-btn {
+    flex: 1;
+    padding: 10px 6px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    background: var(--surface);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    box-shadow: 0 2px 8px var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .theme-btn::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--theme-color);
+    transform: scaleX(0);
+    transition: transform 0.2s ease;
+  }
+  .theme-btn.active::before { transform: scaleX(1); }
+  .theme-btn.active {
+    border-color: var(--theme-color);
+    background: color-mix(in srgb, var(--theme-color) 6%, var(--surface));
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--theme-color) 20%, transparent);
+  }
+  .theme-btn[data-theme="1"] { --theme-color: var(--t1-color); }
+  .theme-btn[data-theme="2"] { --theme-color: var(--t2-color); }
+  .theme-btn[data-theme="3"] { --theme-color: var(--t3-color); }
+  .theme-btn[data-theme="all"] { --theme-color: var(--ink-light); }
+
+  .theme-btn .theme-icon { font-size: 18px; margin-bottom: 3px; }
+  .theme-btn .theme-label {
+    display: block; font-size: 9.5px;
+    font-family: var(--font-serif);
+    font-weight: 600; letter-spacing: 0.05em;
+    color: var(--ink-light);
+    line-height: 1.3;
+  }
+  .theme-btn.active .theme-label { color: var(--theme-color); }
+
+  /* カウンター */
+  .counter {
+    text-align: center;
+    font-size: 11px; color: var(--ink-faint);
+    letter-spacing: 0.06em; margin-bottom: 18px;
+    font-family: var(--font-serif);
+  }
+  .counter strong { color: var(--ink-light); font-size: 13px; }
+
+  /* メインカード */
+  .card-wrapper {
+    perspective: 1000px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--surface);
+    border-radius: var(--card-radius);
+    padding: 26px 22px;
+    box-shadow:
+      0 4px 20px var(--shadow),
+      0 1px 0 rgba(255,255,255,0.8) inset;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s ease;
+    min-height: 320px;
+  }
+  .card.flipping {
+    animation: cardFlip 0.35s ease;
+  }
+  @keyframes cardFlip {
+    0% { transform: rotateY(0deg) scale(1); opacity: 1; }
+    40% { transform: rotateY(-8deg) scale(0.96); opacity: 0.6; }
+    60% { transform: rotateY(8deg) scale(0.96); opacity: 0.6; }
+    100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+  }
+
+  /* テーマ色帯 */
+  .card-theme-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 5px;
+    border-radius: var(--card-radius) var(--card-radius) 0 0;
+    background: var(--current-theme-color, var(--ink-faint));
+  }
+  .card.theme-1 { --current-theme-color: var(--t1-color); }
+  .card.theme-2 { --current-theme-color: var(--t2-color); }
+  .card.theme-3 { --current-theme-color: var(--t3-color); }
+
+  /* テーマバッジ */
+  .card-theme-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-family: var(--font-serif);
+    letter-spacing: 0.08em; font-weight: 600;
+    color: var(--current-theme-color);
+    background: color-mix(in srgb, var(--current-theme-color) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--current-theme-color) 25%, transparent);
+    padding: 3px 10px; border-radius: 20px;
+    margin-bottom: 14px; margin-top: 6px;
+  }
+
+  .card-num {
+    position: absolute; top: 18px; right: 20px;
+    font-size: 11px; color: var(--ink-faint);
+    font-family: var(--font-serif); letter-spacing: 0.04em;
+  }
+
+  .card-title {
+    font-family: var(--font-serif);
+    font-size: 20px; font-weight: 700;
+    line-height: 1.5; letter-spacing: 0.04em;
+    color: var(--ink);
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-intro {
+    font-size: 13.5px; line-height: 1.8;
+    color: var(--ink-light);
+    font-style: italic;
+    font-family: var(--font-serif);
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    background: color-mix(in srgb, var(--current-theme-color) 5%, var(--bg));
+    border-left: 3px solid var(--current-theme-color);
+    border-radius: 0 8px 8px 0;
+  }
+
+  .card-points-label {
+    font-size: 10px; letter-spacing: 0.1em;
+    color: var(--ink-faint); font-weight: 500;
+    margin-bottom: 8px; text-transform: uppercase;
+  }
+  .card-points {
+    list-style: none;
+    margin-bottom: 18px;
+  }
+  .card-points li {
+    font-size: 12.5px; line-height: 1.65;
+    color: var(--ink-light);
+    padding: 5px 0 5px 18px;
+    position: relative;
+    border-bottom: 1px dashed var(--border);
+  }
+  .card-points li:last-child { border-bottom: none; }
+  .card-points li::before {
+    content: '・';
+    position: absolute; left: 0;
+    color: var(--current-theme-color);
+    font-size: 16px; top: 3px;
+  }
+
+  .card-question {
+    font-size: 12.5px; line-height: 1.7;
+    color: var(--ink);
+    background: color-mix(in srgb, var(--accent2) 8%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--accent2) 20%, transparent);
+    padding: 10px 14px; border-radius: 10px;
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .card-question::before { content: '💬'; font-size: 14px; flex-shrink: 0; }
+
+  /* 空カード */
+  .card-empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 280px; gap: 12px;
+  }
+  .card-empty .empty-icon { font-size: 40px; opacity: 0.4; }
+  .card-empty p { font-size: 13px; color: var(--ink-faint); letter-spacing: 0.06em; }
+
+  /* ランダムボタン */
+  .random-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+    color: white;
+    font-family: var(--font-serif);
+    font-size: 16px; font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(192,57,43,0.35);
+    transition: all 0.15s ease;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .random-btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+  }
+  .random-btn:active { transform: scale(0.97); box-shadow: 0 3px 10px rgba(192,57,43,0.35); }
+  .random-btn .btn-icon { font-size: 20px; transition: transform 0.3s ease; }
+  .random-btn:active .btn-icon { transform: rotate(180deg); }
+
+  /* サブボタン行 */
+  .sub-btns {
+    display: flex; gap: 10px; margin-bottom: 28px;
+  }
+  .sub-btn {
+    flex: 1; padding: 11px 8px;
+    border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--ink-light);
+    font-size: 12px; font-family: var(--font-sans);
+    letter-spacing: 0.05em; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+  .sub-btn:active { transform: scale(0.97); background: var(--bg); }
+
+  /* 進捗バー */
+  .progress-section {
+    margin-bottom: 28px;
+  }
+  .progress-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--ink-faint);
+    letter-spacing: 0.05em; margin-bottom: 8px;
+  }
+  .progress-label strong { color: var(--ink-light); }
+  .progress-bars { display: flex; flex-direction: column; gap: 8px; }
+  .progress-item { display: flex; align-items: center; gap: 10px; }
+  .progress-theme-label {
+    font-size: 11px; color: var(--ink-light);
+    width: 80px; flex-shrink: 0; letter-spacing: 0.04em;
+    font-family: var(--font-serif);
+  }
+  .progress-bar-bg {
+    flex: 1; height: 6px; border-radius: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .progress-bar-fill.t1 { background: var(--t1-color); }
+  .progress-bar-fill.t2 { background: var(--t2-color); }
+  .progress-bar-fill.t3 { background: var(--t3-color); }
+  .progress-count {
+    font-size: 11px; color: var(--ink-faint);
+    width: 32px; text-align: right; flex-shrink: 0;
+  }
+
+  /* 使い方 */
+  .tips {
+    background: color-mix(in srgb, var(--accent2) 6%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--accent2) 20%, var(--border));
+    border-radius: 14px; padding: 16px;
+    margin-bottom: 20px;
+  }
+  .tips-title {
+    font-family: var(--font-serif); font-size: 12px;
+    color: var(--accent2); letter-spacing: 0.1em;
+    margin-bottom: 10px; font-weight: 700;
+  }
+  .tips ul { list-style: none; }
+  .tips ul li {
+    font-size: 11.5px; color: var(--ink-light);
+    line-height: 1.7; padding-left: 14px; position: relative;
+  }
+  .tips ul li::before { content: '◇'; position: absolute; left: 0; font-size: 8px; top: 4px; color: var(--accent2); }
+
+  /* フッター */
+  .footer {
+    text-align: center; font-size: 10px;
+    color: var(--ink-faint); letter-spacing: 0.06em;
+    padding-bottom: 8px;
+    font-family: var(--font-serif);
+  }
+
+  /* スクロール */
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ヘッダー -->
+  <div class="header">
+    <div class="header-kamon">✿</div>
+    <h1>note ネタ帳</h1>
+    <p>ボタンを押してネタをひく</p>
+  </div>
+
+  <!-- テーマセレクター -->
+  <div class="theme-selector">
+    <button class="theme-btn active" data-theme="all" onclick="selectTheme(&#39;all&#39;, this)">
+      <div class="theme-icon">✦</div>
+      <span class="theme-label">すべて</span>
+    </button>
+    <button class="theme-btn" data-theme="1" onclick="selectTheme(&#39;1&#39;, this)">
+      <div class="theme-icon">🌸</div>
+      <span class="theme-label">80歳からの生き方</span>
+    </button>
+    <button class="theme-btn" data-theme="2" onclick="selectTheme(&#39;2&#39;, this)">
+      <div class="theme-icon">🏮</div>
+      <span class="theme-label">高齢者との交流</span>
+    </button>
+    <button class="theme-btn" data-theme="3" onclick="selectTheme(&#39;3&#39;, this)">
+      <div class="theme-icon">📜</div>
+      <span class="theme-label">終活アイデア</span>
+    </button>
+  </div>
+
+  <!-- カウンター -->
+  <div class="counter" id="counter">全 <strong>48</strong> 本のネタ</div>
+
+  <!-- メインカード -->
+  <div class="card-wrapper">
+    <div class="card" id="mainCard">
+      <div class="card-theme-bar"></div>
+      <div class="card-empty">
+        <div class="empty-icon">📖</div>
+        <p>「ネタをひく」ボタンを押してください</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ランダムボタン -->
+  <button class="random-btn" onclick="drawNeta()">
+    <span class="btn-icon">🎋</span>
+    ネタをひく
+  </button>
+
+  <!-- サブボタン -->
+  <div class="sub-btns">
+    <button class="sub-btn" onclick="drawNext()">⟩ 次のネタ</button>
+    <button class="sub-btn" onclick="drawPrev()">⟨ 前のネタ</button>
+    <button class="sub-btn" onclick="copyCard()">📋 コピー</button>
+  </div>
+
+  <!-- 進捗 -->
+  <div class="progress-section">
+    <div class="progress-label">
+      <span>表示済みネタ</span>
+      <strong id="seenCount">0 / 48 本</strong>
+    </div>
+    <div class="progress-bars">
+      <div class="progress-item">
+        <span class="progress-theme-label">🌸 生き方</span>
+        <div class="progress-bar-bg"><div class="progress-bar-fill t1" id="bar1" style="width:0%"></div></div>
+        <span class="progress-count" id="cnt1">0/16</span>
+      </div>
+      <div class="progress-item">
+        <span class="progress-theme-label">🏮 交流話</span>
+        <div class="progress-bar-bg"><div class="progress-bar-fill t2" id="bar2" style="width:0%"></div></div>
+        <span class="progress-count" id="cnt2">0/16</span>
+      </div>
+      <div class="progress-item">
+        <span class="progress-theme-label">📜 終活</span>
+        <div class="progress-bar-bg"><div class="progress-bar-fill t3" id="bar3" style="width:0%"></div></div>
+        <span class="progress-count" id="cnt3">0/16</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 使い方 -->
+  <div class="tips">
+    <div class="tips-title">◈ 使い方</div>
+    <ul>
+      <li>「ネタをひく」でランダム表示</li>
+      <li>テーマカードで絞り込みができます</li>
+      <li>「コピー」でネタをクリップボードに保存</li>
+      <li>iPhoneは「共有→ホーム画面に追加」でアプリ化</li>
+    </ul>
+  </div>
+
+  <div class="footer">note ネタ帳 ✦ 48ネタ収録</div>
+</div>
+
+<script>
+const NETA = [
+  // テーマ1
+  {
+    theme: 1,
+    num: "T1-01",
+    title: '80歳からの「捨てる勇気」',
+    intro: '長く生きるほど荷物は増える。でも本当に必要なものは、意外と少ないのかもしれない。',
+    points: ['物だけでなく「役割」や「肩書き」を手放す話', '軽くなることで見えてくる自由と喜び', '捨てることへの罪悪感との向き合い方'],
+    question: 'あなたが手放してよかったものは何ですか？'
+  },
+  {
+    theme: 1, num: "T1-02",
+    title: '「もう歳だから」をやめた日',
+    intro: 'その一言が、自分の可能性に自分でふたをしていたと気づいたのは、80を過ぎてからだった。',
+    points: ['口ぐせが自己イメージに与える影響', '「もう歳だから」と言いたくなった具体的な場面', 'やめてみて変わったこと・感じたこと'],
+    question: 'あなたが最近「歳のせい」にしてしまったことはありますか？'
+  },
+  {
+    theme: 1, num: "T1-03",
+    title: '老いを「味方」にする考え方',
+    intro: '老いは敵じゃない。うまく付き合えば、これほど正直で深い友もいない。',
+    points: ['体の変化を受け入れるプロセス', '老いが教えてくれた「本当に大切なこと」', '無理をしない生き方の具体的な工夫'],
+    question: '老いと仲良くするために、あなたがしていることはありますか？'
+  },
+  {
+    theme: 1, num: "T1-04",
+    title: '80代で始めた「小さな挑戦」',
+    intro: '新しいことを始めるのに、遅すぎる年齢なんてないと、80歳の春に実感した。',
+    points: ['挑戦のきっかけとなった出来事', '周囲の反応と自分の気持ちの変化', '小さな挑戦が日常にもたらした変化'],
+    question: '最近、新しく始めてみたいことはありますか？'
+  },
+  {
+    theme: 1, num: "T1-05",
+    title: '「ひとりの時間」を愛する技術',
+    intro: '孤独と孤立は違う。ひとりでいることを楽しめる人は、実はとても豊かだと思う。',
+    points: ['ひとりの時間の使い方・楽しみ方', '「さみしい」と「ひとりが好き」の境界線', '自分と向き合う時間がもたらす気づき'],
+    question: 'ひとりの時間に、あなたは何をしていますか？'
+  },
+  {
+    theme: 1, num: "T1-06",
+    title: '80歳からの「友情」の形',
+    intro: '若い頃の友情とは違う、深くて静かなつながりが、この年齢にはある。',
+    points: ['長年の友人との関係の変化', '新しい友人ができた意外なきっかけ', '友情を長続きさせる80代なりの工夫'],
+    question: 'あなたの「長い付き合いの友人」との思い出を教えてください。'
+  },
+  {
+    theme: 1, num: "T1-07",
+    title: '病気と「うまく暮らす」コツ',
+    intro: '病気を「治す」だけが答えじゃない。病気と一緒に、機嫌よく生きる道がある。',
+    points: ['病気を抱えながらも前向きでいられる理由', '医師や家族との関係の作り方', '日常の中で心がけている小さなこと'],
+    question: '健康のために、毎日続けていることはありますか？'
+  },
+  {
+    theme: 1, num: "T1-08",
+    title: '「役に立たなくていい」という解放',
+    intro: '誰かの役に立つことで自分を証明してきた。でも今は、ただ存在するだけでいいと思っている。',
+    points: ['「役に立つ自分」を求め続けてきた半生', '役割を手放したときの喪失感と解放感', '「いるだけでいい」という境地への道筋'],
+    question: 'あなたが「何もしなくていい」と感じられる瞬間はどんなときですか？'
+  },
+  {
+    theme: 1, num: "T1-09",
+    title: '食事を「楽しむ」ことへの回帰',
+    intro: '栄養や制限ばかり考えていたら、いつの間にか食卓から笑いが消えていた。',
+    points: ['食事を楽しむための小さな工夫', '昔と今で変わった食の好みや習慣', '誰かと食べることの大切さ'],
+    question: '最近、おいしいと感じた食べ物を教えてください。'
+  },
+  {
+    theme: 1, num: "T1-10",
+    title: '80代が「若者」に教えられること',
+    intro: '若い人から学ぶことは多い。でも同時に、私たちだけが持っているものもある。',
+    points: ['若い世代との交流から気づいたこと', '長く生きた者だけが持つ視点や経験', '世代間のギャップを楽しむ姿勢'],
+    question: '最近、若い人に「なるほど」と思わされたことはありますか？'
+  },
+  {
+    theme: 1, num: "T1-11",
+    title: '「できること」に目を向ける日々',
+    intro: 'できないことを数えるより、まだできることを喜ぶ。それだけで、一日の色が変わる。',
+    points: ['できなくなったことへの正直な気持ち', '「できること」を見つける習慣の作り方', '小さな「できた」を積み重ねる喜び'],
+    question: '最近、「まだできる！」と嬉しかったことはありますか？'
+  },
+  {
+    theme: 1, num: "T1-12",
+    title: '夫婦で迎える「老いの時間」',
+    intro: '長年連れ添った相手と、こんなに静かで穏やかな時間を過ごせるとは思っていなかった。',
+    points: ['老後の夫婦関係の変化と深まり', '衝突や摩擦をうまく乗り越えた経験', '一緒にいることの「あたりまえ」への感謝'],
+    question: 'パートナーや大切な人への、感謝の言葉を聞かせてください。'
+  },
+  {
+    theme: 1, num: "T1-13",
+    title: '「昔話」が宝になるとき',
+    intro: '記憶は老いない。80年分の物語は、誰かにとって本物の宝になることがある。',
+    points: ['昔話を「語ること」の意味と効果', '過去の記憶が今の自分を支えている話', '思い出を記録・伝える具体的な方法'],
+    question: 'あなたの人生で、一番鮮明に覚えている場面はどこですか？'
+  },
+  {
+    theme: 1, num: "T1-14",
+    title: '機嫌よく生きる、私の流儀',
+    intro: 'ご機嫌は自分で作るもの。80年かけてやっと、そのコツが少しわかってきた。',
+    points: ['機嫌が悪くなる自分のパターンへの気づき', '気持ちを立て直す具体的な習慣', '「不機嫌」を周りにぶつけないための工夫'],
+    question: 'あなたが「気持ちをリセット」する方法を教えてください。'
+  },
+  {
+    theme: 1, num: "T1-15",
+    title: '「感謝」を言葉にする勇気',
+    intro: '思っているだけでは伝わらない。歳を重ねてから、やっとそれが素直にできるようになった。',
+    points: ['感謝を伝えられなかった後悔の経験', '言葉にすることで変わった人間関係', '日常の中で感謝を伝える小さな習慣'],
+    question: '最近、誰かに「ありがとう」を伝えましたか？'
+  },
+  {
+    theme: 1, num: "T1-16",
+    title: '死を「遠くに置かない」生き方',
+    intro: '死を意識することは、怖いことじゃない。むしろ今日という日を、もっと大切にできる。',
+    points: ['死について初めて正面から向き合った瞬間', '死を意識することで変わった日常の見え方', '「今日をよく生きる」ための具体的な心がけ'],
+    question: '死について、誰かと話したことはありますか？'
+  },
+  // テーマ2
+  {
+    theme: 2, num: "T2-01",
+    title: '「戦後の闇市」で買ったもの',
+    intro: '今のスーパーでは想像もできない場所で、人々は生きるために必死に買い物をしていた。',
+    points: ['闇市の雰囲気・場所・売られていたもの', 'そこで感じた活気と悲しさ', '現代の豊かさとの対比'],
+    question: '戦後の話を、祖父母や年配の方から聞いたことはありますか？'
+  },
+  {
+    theme: 2, num: "T2-02",
+    title: '昭和の「近所づきあい」の濃さ',
+    intro: '鍵をかけない家、おかずを持ち寄る隣人。あの頃の「となり」はもっと近かった。',
+    points: ['具体的な近所づきあいのエピソード', '煩わしさとありがたさの両面', '現代との比較と、失ったものへの思い'],
+    question: 'あなたの地域の近所づきあいは、今どんな感じですか？'
+  },
+  {
+    theme: 2, num: "T2-03",
+    title: '「ちゃぶ台」を囲んだ食卓の記憶',
+    intro: '家族全員が同じ鍋をつつく。あの狭さと騒がしさが、今になって恋しくなる。',
+    points: ['ちゃぶ台の食卓の具体的な風景', '当時の食事のメニューや習慣', '家族が「そろう」ことの意味'],
+    question: 'あなたが子供の頃の食卓で、印象に残っている料理は何ですか？'
+  },
+  {
+    theme: 2, num: "T2-04",
+    title: '白黒テレビが来た日の興奮',
+    intro: '近所中の人が集まって、あの小さな画面を食い入るように見つめた。あの日の熱気は忘れない。',
+    points: ['テレビが家に来たときの状況と感情', '近所への「見せる」文化と人が集まる様子', '最初に見た番組の記憶'],
+    question: 'あなたの家に初めて来た「家電」は何でしたか？'
+  },
+  {
+    theme: 2, num: "T2-05",
+    title: '集団就職列車に乗った若者たち',
+    intro: '故郷を離れ、見知らぬ都会へ。あの列車に乗った若者たちの覚悟は、今の比ではなかった。',
+    points: ['集団就職の背景と時代の空気', '故郷を離れるときの気持ちと家族との別れ', '都会での最初の生活の苦労と喜び'],
+    question: '故郷を離れた経験がある方、そのときの気持ちを聞かせてください。'
+  },
+  {
+    theme: 2, num: "T2-06",
+    title: '「銭湯」が社交場だったころ',
+    intro: '湯船で交わした他愛ない会話が、なぜか今でも心に残っている。',
+    points: ['銭湯の雰囲気と常連たちの顔ぶれ', '家風呂のない時代の生活リズム', '銭湯でつながったご近所コミュニティ'],
+    question: '銭湯の思い出や、今も通っている方はいますか？'
+  },
+  {
+    theme: 2, num: "T2-07",
+    title: '子供の頃の「お正月」の豪華さ',
+    intro: 'お年玉より嬉しかったのは、あの特別なごちそうと、家中に漂うにぎやかな空気だった。',
+    points: ['正月の準備・料理・飾りの具体的な記憶', '親戚が集まることの喜びと大変さ', '現代のお正月との違いへの率直な感想'],
+    question: '子供の頃のお正月で、一番の思い出は何ですか？'
+  },
+  {
+    theme: 2, num: "T2-08",
+    title: '「代用品」で乗り切った知恵',
+    intro: 'ないものは作る、壊れたら直す。あの時代の「もったいない精神」は、本物だった。',
+    points: ['具体的な代用品・手作りアイテムの話', '不便さの中に生まれた工夫と創造力', '現代の使い捨て文化への一言'],
+    question: 'あなたが子供の頃、手作りしたものや代用したものはありますか？'
+  },
+  {
+    theme: 2, num: "T2-09",
+    title: '昭和の「先生」は怖かった',
+    intro: '廊下に立たされ、げんこつをもらい、それでも先生のことが好きだった不思議。',
+    points: ['厳しい指導の具体的なエピソード', '怖さの裏にあった先生の愛情', '今の教育との違いへの思い'],
+    question: '学校の先生で、今でも記憶に残っている方はいますか？'
+  },
+  {
+    theme: 2, num: "T2-10",
+    title: '高度成長期の「活気」の記憶',
+    intro: '街全体が前に向かって走っていた。あのエネルギーは、今の日本にはないかもしれない。',
+    points: ['高度成長期の街の変化と生活の変化', '働くことへの誇りと充実感', '豊かになって「得たもの」「失ったもの」'],
+    question: 'あなたが「日本が元気だった」と感じる時代はいつ頃ですか？'
+  },
+  {
+    theme: 2, num: "T2-11",
+    title: '「手紙」でしか伝えられなかった気持ち',
+    intro: '何度も書き直した便箋。あの不便さが、言葉を丁寧にさせていた。',
+    points: ['大切な手紙をやりとりした相手と内容', '手紙を書く・受け取るときの気持ち', 'LINEやメールとの決定的な違い'],
+    question: '大切にしまってある手紙はありますか？'
+  },
+  {
+    theme: 2, num: "T2-12",
+    title: 'お見合い結婚の「リアル」',
+    intro: '初めて会った日、この人と一生を共にするとは思わなかった。でも今は感謝している。',
+    points: ['お見合いの段取りと初対面の緊張', '恋愛結婚との違いを感じた瞬間', '長年連れ添ってわかった「縁」の意味'],
+    question: '結婚にまつわるエピソードを、ぜひ教えてください。'
+  },
+  {
+    theme: 2, num: "T2-13",
+    title: '子供だけで遊んだ「空き地」の世界',
+    intro: '親が心配して探しに来るまで、夢中で遊んでいた。あの空き地はもう、どこにもない。',
+    points: ['空き地での遊びの具体的な内容', '子供だけの「社会」と秩序', '今の子供の遊び環境との違いへの思い'],
+    question: '子供の頃の「秘密基地」や「遊び場」はありましたか？'
+  },
+  {
+    theme: 2, num: "T2-14",
+    title: '「モノクロ写真」の中の家族',
+    intro: 'セピア色の一枚の中に、若い父と母がいる。あの頃の話を聞いておけばよかった。',
+    points: ['古い家族写真にまつわるエピソード', '写真を見て気づいた親の人生への想い', '記録を残すことの大切さ'],
+    question: '大切にしている古い写真はありますか？'
+  },
+  {
+    theme: 2, num: "T2-15",
+    title: '昭和の「薬屋さん」と置き薬',
+    intro: '年に一度やってくるおじさんが、薬箱を点検して帳面につけていく。あの安心感は何だったのだろう。',
+    points: ['置き薬のシステムと薬屋さんの人柄', '地域の医療と信頼関係の話', '昭和の「顔が見える商売」への郷愁'],
+    question: '子供の頃、家に来ていた「行商」や「御用聞き」の記憶はありますか？'
+  },
+  {
+    theme: 2, num: "T2-16",
+    title: '「紙芝居屋さん」が来る日の幸せ',
+    intro: 'あめ玉を買った子だけが前に座れた。あの不平等が、なぜかちっとも嫌じゃなかった。',
+    points: ['紙芝居屋さんの登場から始まる子供たちの興奮', '演じる紙芝居師の話術と世界観', '失われた「街角の娯楽」への想い'],
+    question: '子供の頃の「街の楽しみ」で、覚えているものはありますか？'
+  },
+  // テーマ3
+  {
+    theme: 3, num: "T3-01",
+    title: '「エンディングノート」を開いた朝',
+    intro: '書こうと思って買ったまま、本棚に眠っていた。でもある朝、やっと一行目を書いた。',
+    points: ['エンディングノートを書き始めたきっかけ', '最初の一行を書くときの気持ち', '書いてみて気づいた「自分の本音」'],
+    question: 'エンディングノートを書いたことがある方、最初に書いたのはどの項目ですか？'
+  },
+  {
+    theme: 3, num: "T3-02",
+    title: 'お葬式は「自分らしく」でいい',
+    intro: '豪華な祭壇より、来てくれた人が笑顔で帰れる葬儀がいい、と思うようになった。',
+    points: ['一般的な葬儀への疑問と自分の希望', '家族への「こうしてほしい」の伝え方', '小さくても心のこもった葬儀のアイデア'],
+    question: '自分のお葬式に、どんな希望がありますか？'
+  },
+  {
+    theme: 3, num: "T3-03",
+    title: '「生前整理」は贈り物だと気づいた',
+    intro: '自分の荷物を自分で片づけることは、残される家族への最後の愛情かもしれない。',
+    points: ['生前整理を始めたきっかけと最初の一歩', '物を手放しながら蘇ってくる記憶の話', '家族の反応と生前整理がもたらした変化'],
+    question: '生前整理を始めている方、一番手放すのが難しかったものは何ですか？'
+  },
+  {
+    theme: 3, num: "T3-04",
+    title: 'デジタル遺品の「意外な盲点」',
+    intro: 'スマホの中に、家族も知らない自分の世界がある。それを誰かに託す準備はできていますか？',
+    points: ['デジタル遺品が問題になる具体的なケース', 'パスワード管理と家族への伝達方法', 'SNSや写真データの扱いについての考え方'],
+    question: 'スマホやPCの中で、家族に見せてもいいものと困るものはありますか？'
+  },
+  {
+    theme: 3, num: "T3-05",
+    title: 'お墓のこと、家族と話せていますか',
+    intro: '「墓じまい」「散骨」「樹木葬」。選択肢が増えたからこそ、早めに話し合いたい。',
+    points: ['多様化するお墓の形と選択のポイント', '家族と話し合うきっかけの作り方', 'お墓に対する自分の正直な気持ち'],
+    question: 'お墓について、家族と話したことはありますか？'
+  },
+  {
+    theme: 3, num: "T3-06",
+    title: '「もしもの時」を書いた手紙',
+    intro: '元気なうちに書いた手紙は、遺言でも遺書でもない。ただ「ありがとう」を伝えたかった。',
+    points: ['家族・友人への手紙を書くきっかけ', '手紙に書いたこと・書けなかったこと', '書くことで整理された自分の気持ち'],
+    question: 'もし今日、大切な人へ手紙を書くとしたら、何を伝えたいですか？'
+  },
+  {
+    theme: 3, num: "T3-07",
+    title: '財産より「伝えたいこと」がある',
+    intro: 'お金や不動産より、自分の価値観や生き方を子供たちに伝えることのほうが、ずっと大切だと思う。',
+    points: ['伝えたい「価値観」や「人生の教訓」', '財産相続トラブルを防ぐための準備', '「精神的遺産」を形に残す具体的な方法'],
+    question: '親や祖父母から受け取った、財産以外の「大切なもの」はありますか？'
+  },
+  {
+    theme: 3, num: "T3-08",
+    title: '「延命治療」について家族に伝える',
+    intro: '元気なうちに話しておかないと、いざというとき家族が苦しむ。それだけは避けたかった。',
+    points: ['延命治療に関する自分の考えと背景', '家族との話し合いのきっかけと進め方', 'リビングウィルや意思表示カードの活用法'],
+    question: '延命治療についての希望を、家族に伝えていますか？'
+  },
+  {
+    theme: 3, num: "T3-09",
+    title: '「老後の住まい」を真剣に考えた',
+    intro: '今の家に最後まで住むのか、施設に移るのか。どちらも正解で、どちらも覚悟がいる。',
+    points: ['自宅・施設それぞれのメリットと現実', '住まいの決断を先送りしない理由', '家族と住まいについて話し合った経験'],
+    question: '老後の住まいについて、今どう考えていますか？'
+  },
+  {
+    theme: 3, num: "T3-10",
+    title: '「趣味のコレクション」どうする問題',
+    intro: '一生かけて集めたものを、自分の死後に捨てられると思うと悲しい。でも、どうすればいい？',
+    points: ['コレクションの価値と家族の温度差', '譲る・売る・寄付するなどの選択肢', '「好きだった」を誰かに伝える方法'],
+    question: '大切にしているコレクションや趣味の道具、どうしたいか考えていますか？'
+  },
+  {
+    theme: 3, num: "T3-11",
+    title: 'ひとり暮らしの終活、どう備える',
+    intro: '家族がいないからこそ、自分でしっかり準備しておかなければ、と思っている。',
+    points: ['おひとりさまの終活で特に重要なポイント', '頼れる人・仕組みを作るための具体的な手順', '孤独死への不安と向き合う心構え'],
+    question: 'ひとり暮らしの方、終活で一番不安なことは何ですか？'
+  },
+  {
+    theme: 3, num: "T3-12",
+    title: '「写真整理」は終活の第一歩',
+    intro: '段ボール箱の中に眠る数百枚の写真。捨てるに捨てられない、でも多すぎる。',
+    points: ['写真整理の始め方と優先順位のつけ方', 'デジタル化のメリットと注意点', '整理しながら振り返る「自分史」の楽しさ'],
+    question: '家に眠っている古い写真、整理できていますか？'
+  },
+  {
+    theme: 3, num: "T3-13",
+    title: '「介護される側」の心づもり',
+    intro: '介護する側のことばかり考えてきたが、される側にも準備と心構えが必要だと気づいた。',
+    points: ['介護を受けることへの抵抗感と向き合い方', '自分の介護方針を家族に伝える重要性', '介護される側として「できること」への気づき'],
+    question: '介護について、家族と話し合ったことはありますか？'
+  },
+  {
+    theme: 3, num: "T3-14",
+    title: '「人生年表」を書いてみたら泣けた',
+    intro: '生まれてから今日まで、自分はこんなにも多くのことを経験してきたのか、と。',
+    points: ['人生年表の書き方と気づきのプロセス', '忘れていた出来事・人との再会（記憶の中で）', '年表が「これからの自分」に与えてくれた視点'],
+    question: 'あなたの人生で、「転機」となった出来事はいつですか？'
+  },
+  {
+    theme: 3, num: "T3-15",
+    title: '「形見分け」は早めがうまくいく',
+    intro: '亡くなってから揉めるより、渡したい人に自分で手渡せる幸せを、もっと早く知りたかった。',
+    points: ['形見分けを生前に行うメリット', '渡す相手と品物を決めるときの考え方', '実際に手渡したときの相手の反応と自分の気持ち'],
+    question: '誰かに受け継いでほしい「大切なもの」はありますか？'
+  },
+  {
+    theme: 3, num: "T3-16",
+    title: '終活は「死の準備」じゃなかった',
+    intro: 'やり始めてわかった。終活とは、残りの人生をどう生きるかを考えることだった。',
+    points: ['終活に対するイメージが変わったきっかけ', '準備を進める中で生まれた「前向きな気持ち」', '終活が今の生活にもたらした具体的な変化'],
+    question: '終活という言葉に、あなたはどんなイメージを持っていますか？'
+  }
+];
+
+const THEME_NAMES = {
+  '1': '🌸 80歳からの生き方',
+  '2': '🏮 高齢者との交流話',
+  '3': '📜 終活アイデア'
+};
+
+let currentTheme = 'all';
+let filteredNeta = [...NETA];
+let currentIndex = -1;
+let seenIds = new Set();
+let history = [];
+let historyPos = -1;
+
+function selectTheme(theme, btn) {
+  currentTheme = theme;
+  document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filteredNeta = theme === 'all' ? [...NETA] : NETA.filter(n => n.theme == theme);
+  document.getElementById('counter').innerHTML =
+    `<strong>${filteredNeta.length}</strong> 本のネタが対象`;
+  updateProgress();
+}
+
+function drawNeta() {
+  if (filteredNeta.length === 0) return;
+  const idx = Math.floor(Math.random() * filteredNeta.length);
+  const neta = filteredNeta[idx];
+  history = history.slice(0, historyPos + 1);
+  history.push(neta);
+  historyPos = history.length - 1;
+  showNeta(neta, true);
+}
+
+function drawNext() {
+  if (historyPos < history.length - 1) {
+    historyPos++;
+    showNeta(history[historyPos], true);
+  } else {
+    drawNeta();
+  }
+}
+
+function drawPrev() {
+  if (historyPos > 0) {
+    historyPos--;
+    showNeta(history[historyPos], true);
+  }
+}
+
+function showNeta(neta, animate) {
+  const card = document.getElementById('mainCard');
+  const themeColors = { 1: 'var(--t1-color)', 2: 'var(--t2-color)', 3: 'var(--t3-color)' };
+
+  if (animate) {
+    card.classList.remove('flipping');
+    void card.offsetWidth;
+    card.classList.add('flipping');
+    setTimeout(() => card.classList.remove('flipping'), 400);
+  }
+
+  seenIds.add(neta.num);
+  updateProgress();
+
+  const pointsHtml = neta.points.map(p => `<li>${p}</li>`).join('');
+
+  card.className = `card theme-${neta.theme}`;
+  card.innerHTML = `
+    <div class="card-theme-bar"></div>
+    <div class="card-num">${neta.num}</div>
+    <div class="card-theme-badge">${THEME_NAMES[neta.theme]}</div>
+    <div class="card-title">${neta.title}</div>
+    <div class="card-intro">${neta.intro}</div>
+    <div class="card-points-label">▪ 書くべきポイント</div>
+    <ul class="card-points">${pointsHtml}</ul>
+    <div class="card-question">${neta.question}</div>
+  `;
+}
+
+function copyCard() {
+  if (historyPos < 0 || !history[historyPos]) {
+    alert('先にネタをひいてください');
+    return;
+  }
+  const n = history[historyPos];
+  const text = `【${THEME_NAMES[n.theme]}】\n\n■ ${n.title}\n\n${n.intro}\n\n▪ ポイント\n${n.points.map((p,i)=>`${i+1}. ${p}`).join('\n')}\n\n💬 ${n.question}`;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => alert('コピーしました！'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('コピーしました！');
+  }
+}
+
+function updateProgress() {
+  const total = seenIds.size;
+  document.getElementById('seenCount').textContent = `${total} / 48 本`;
+
+  [1,2,3].forEach(t => {
+    const prefix = `T${t}-`;
+    const count = [...seenIds].filter(id => id.startsWith(prefix)).length;
+    document.getElementById(`bar${t}`).style.width = `${(count/16)*100}%`;
+    document.getElementById(`cnt${t}`).textContent = `${count}/16`;
+  });
+}
+</script>
+
+
+</body></html>
